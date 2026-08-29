@@ -1,0 +1,10 @@
+pdf_path: ingestables\Diya Mohapatra_resume9_7.pdf
+chunking: semantic
+chunk_size: 550
+chunk_overlap: 100
+preprocess: true
+embedding_model: all-MiniLM-L6-v2
+retriever: sparse
+k: 2
+output_format: snippet
+snippet_length: 100
