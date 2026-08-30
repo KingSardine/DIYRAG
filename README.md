@@ -26,6 +26,28 @@ python -m pipeline
 
 Then follow prompts in the terminal. After indexing, you can enter free-text queries and view top-k results.
 
-## Future website
+## 🌐 Custom RAG Sandbox & Diagnostic Tool (Web UI)
 
-Goal: build an interactive web-based dashboard (similar to the attached mock) showing live pipeline flow, comparative analytics, and real-time logs. For now, `pipeline.py` is designed with that future UI in mind — it centralizes configuration and exposes a simple interactive flow you can later hook to a web frontend.
+The full interactive web application is located in the [`Frontend/`](Frontend/) directory.
+
+### Quick Start:
+
+1. **Run Frontend (Dev Mode):**
+   ```bash
+   cd Frontend
+   npm install
+   npm run dev
+   ```
+   Open `http://localhost:3000` in your browser.
+
+2. **Run Fullstack Server (FastAPI + Built Frontend):**
+   ```bash
+   python run.py
+   ```
+
+### Features:
+- **1. Step Config Panel:** Configure Ingestion (with custom PDF file upload, URL, or preloaded documents), Sentence Segmentation Preprocessing, Chunking (Recursive, Semantic, Fixed, Structural), Embedding, VectorDB, and Retrieval.
+- **2. Live Pipeline Flow Canvas:** Interactive animated node graph with speed & throughput metrics (`Speed: 2.1 MB/s`, `342 Chunks/sec`) and glowing data particle streams.
+- **3. Query & Diagnostic Playground:** Test search queries with live similarity scores, snippet/full previews, and node latency breakdown.
+- **4. Real-Time Backend Log Stream & Terminal:** Color-coded log streaming with millisecond timestamps and interactive `Query>` command prompt for bidirectional terminal input.
+- **5. Compare System Mode:** Side-by-side comparative benchmarking for CompA vs CompB dual configurations.

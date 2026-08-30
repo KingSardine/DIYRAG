@@ -1,4 +1,7 @@
-import pytest
+try:
+    import pytest
+except ImportError:
+    pytest = None
 import numpy as np
 
 from pathlib import Path
@@ -102,3 +105,19 @@ def test_hybrid_retriever_dense_prefers_embedding():
 
     results, scores = retriever.retrieve("A query", k=1)
     assert results[0] == "doc A content"
+
+
+if __name__ == "__main__":
+    print("Running test_segment_sentences_basic...")
+    test_segment_sentences_basic()
+    print("Running test_generate_embeddings_empty_and_nonempty...")
+    test_generate_embeddings_empty_and_nonempty()
+    print("Running test_fixed_recursive_structural_chunkers...")
+    test_fixed_recursive_structural_chunkers()
+    print("Running test_semantic_chunking_returns_list...")
+    test_semantic_chunking_returns_list()
+    print("Running test_sparse_retriever_basic...")
+    test_sparse_retriever_basic()
+    print("Running test_hybrid_retriever_dense_prefers_embedding...")
+    test_hybrid_retriever_dense_prefers_embedding()
+    print("All tests PASSED successfully!")

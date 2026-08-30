@@ -36,6 +36,7 @@ class HybridRetriever:
 
         self._sparse_retriever = SparseRetriever(stopwords=stopwords, stemmer=stemmer)
         self._dense_embeddings = None
+        self._embedding_fn: Optional[Callable] = None
         self._raw_docs = []
 
     def _ensure_text(self, item: Any) -> str:
@@ -75,11 +76,13 @@ class HybridRetriever:
         self._sparse_retriever.index(texts)
         logger.info("Hybrid retriever: sparse index completed for %d docs", len(texts))
 
-        # Generate dense embeddings
+        # Generate dense embeddings and remember embedding function (if custom)
         if embedding_fn:
             embeddings = embedding_fn(texts)
+            self._embedding_fn = embedding_fn
         else:
             embeddings = generate_embeddings(texts, model_name=self.embedding_model)
+            self._embedding_fn = None
 
         self._dense_embeddings = embeddings
         logger.info("Hybrid retriever: dense embeddings shape %s", str(getattr(self._dense_embeddings, 'shape', None)))
@@ -89,7 +92,11 @@ class HybridRetriever:
         if self._dense_embeddings is None or len(self._raw_docs) == 0:
             return np.empty((1, 0), dtype=object), np.empty((1, 0), dtype=float)
 
-        query_embedding = generate_embeddings([query], model_name=self.embedding_model)
+        # Use the same embedding function used at index time (if any)
+        if self._embedding_fn is not None:
+            query_embedding = self._embedding_fn([query])
+        else:
+            query_embedding = generate_embeddings([query], model_name=self.embedding_model)
         if query_embedding.shape[0] == 0:
             return np.empty((1, 0), dtype=object), np.empty((1, 0), dtype=float)
 

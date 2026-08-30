@@ -1,10 +1,15 @@
-pdf_path: ingestables\Diya Mohapatra_resume9_7.pdf
-chunking: semantic
-chunk_size: 550
-chunk_overlap: 100
+pdf_path: ingestables/Arthur_Bennett_Synthetic_Care_Plan.pdf
+loader_type: pdf
 preprocess: true
+chunking: structural
+chunk_size: 500
+chunk_overlap: 50
+percentile_threshold: 60
 embedding_model: all-MiniLM-L6-v2
-retriever: sparse
-k: 2
+vector_db: chromadb
+retriever: dense
+sparse_weight: 0.5
+dense_weight: 0.5
+k: 5
 output_format: snippet
 snippet_length: 100

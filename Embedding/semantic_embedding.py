@@ -1,6 +1,6 @@
 import re
 import logging
-from typing import List
+from typing import List, Dict, Optional
 
 import numpy as np
 
@@ -11,27 +11,37 @@ try:
 except Exception:  # pragma: no cover - fallback for environments without the package
     SentenceTransformer = None
 
+# Global shared vocabulary for fallback bag-of-words
+_GLOBAL_BOW_VOCAB: Dict[str, int] = {}
 
-def _simple_bag_of_words_embeddings(sentences: List[str]) -> np.ndarray:
+def _simple_bag_of_words_embeddings(sentences: List[str], token_map: Optional[Dict[str, int]] = None) -> np.ndarray:
     """Create deterministic fallback embeddings when sentence-transformers is unavailable."""
+    global _GLOBAL_BOW_VOCAB
     if not sentences:
         return np.empty((0, 0), dtype=float)
 
     token_pattern = re.compile(r"[a-zA-Z0-9']+")
-    vocab = []
-    token_map = {}
 
-    for sentence in sentences:
-        for token in token_pattern.findall(sentence.lower()):
-            if token not in token_map:
-                token_map[token] = len(vocab)
-                vocab.append(token)
+    if token_map is None:
+        if not _GLOBAL_BOW_VOCAB:
+            # Build vocabulary from sentences
+            vocab = []
+            token_map = {}
+            for sentence in sentences:
+                for token in token_pattern.findall(str(sentence).lower()):
+                    if token not in token_map:
+                        token_map[token] = len(vocab)
+                        vocab.append(token)
+            _GLOBAL_BOW_VOCAB = token_map
+        else:
+            token_map = _GLOBAL_BOW_VOCAB
 
-    vectors = np.zeros((len(sentences), len(vocab)), dtype=float)
+    vocab_size = max(1, len(token_map))
+    vectors = np.zeros((len(sentences), vocab_size), dtype=float)
 
     for index, sentence in enumerate(sentences):
         counts = {}
-        for token in token_pattern.findall(sentence.lower()):
+        for token in token_pattern.findall(str(sentence).lower()):
             counts[token] = counts.get(token, 0) + 1
 
         for token, count in counts.items():

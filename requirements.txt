@@ -12,3 +12,11 @@ moviepy
 pytest
 python-dotenv
 pyyaml
+fastapi
+uvicorn
+python-multipart
+websockets
+PyJWT
+cryptography
+requests
+slowapi
