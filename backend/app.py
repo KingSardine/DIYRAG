@@ -13,6 +13,7 @@ import requests
 import jwt
 from jwt.algorithms import RSAAlgorithm
 from collections import deque
+from dotenv import load_dotenv
 
 # Simple in-memory rate limiter storage
 # Note: `slowapi` is added to requirements.txt per request, but for
@@ -31,6 +32,8 @@ import uuid
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+load_dotenv(ROOT / "backend" / ".env")
 
 from config import load_config, save_config
 from backend.pipeline_service import execute_pipeline, query_active_pipeline, get_stage_diagnostics
@@ -52,52 +55,81 @@ def _get_clerk_jwks() -> Dict[str, Any]:
     if _JWKS_CACHE.get("fetched_at", 0) + _JWKS_TTL > now and _JWKS_CACHE.get("keys"):
         return _JWKS_CACHE
 
-    jwks_url = os.environ.get("CLERK_JWKS_URL", "https://clerk.com/.well-known/jwks.json")
+    issuer = os.environ.get("CLERK_ISSUER", "").rstrip("/")
+    jwks_url = os.environ.get("CLERK_JWKS_URL") or (f"{issuer}/.well-known/jwks.json" if issuer else "")
+    if not jwks_url:
+        logger.error("Clerk JWKS configuration is missing: set CLERK_JWKS_URL or CLERK_ISSUER")
+        return _JWKS_CACHE
     try:
         r = requests.get(jwks_url, timeout=5)
         r.raise_for_status()
         data = r.json()
         _JWKS_CACHE.update({"keys": data.get("keys", []), "fetched_at": now})
-    except Exception:
-        # on error, keep whatever cached or empty
-        pass
+    except Exception as exc:
+        logger.error("Clerk JWKS request failed for configured endpoint: %s", exc)
     return _JWKS_CACHE
 
-def verify_clerk_token(token: str) -> Optional[Dict[str, Any]]:
+def verify_clerk_token(authorization_header: str) -> Optional[Dict[str, Any]]:
     """Verify a Clerk-issued JWT (session or client) using JWKS public keys.
 
     Returns the decoded payload on success, or None on failure.
     """
-    if not token:
+    logger.info("Clerk auth: authorization_header_present=%s", bool(authorization_header))
+    if not authorization_header:
         return None
 
-    # strip Bearer prefix if present
-    if token.lower().startswith("bearer "):
-        token = token.split(" ", 1)[1]
-
-    jwks = _get_clerk_jwks()
-    keys = jwks.get("keys", [])
-    try:
-        unverified = jwt.decode(token, options={"verify_signature": False})
-    except Exception:
+    scheme, _, token = authorization_header.partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        logger.warning("Clerk auth rejected: bearer_token_extracted=False")
         return None
-
-    kid = unverified.get("kid")
-    key_entry = None
-    for k in keys:
-        if k.get("kid") == kid:
-            key_entry = k
-            break
-
-    if not key_entry:
-        return None
+    token = token.strip()
+    logger.info("Clerk auth: bearer_token_extracted=True")
 
     try:
+        token_header = jwt.get_unverified_header(token)
+        algorithm = token_header.get("alg")
+        key_id = token_header.get("kid")
+        logger.info("Clerk auth token header: alg=%s kid=%s", algorithm, key_id)
+        if algorithm != "RS256" or not key_id:
+            raise ValueError("unsupported or incomplete JWT header")
+
+        unverified_claims = jwt.decode(token, options={"verify_signature": False})
+        logger.info(
+            "Clerk auth token claims: iss=%s aud=%s azp=%s exp=%s sub=%s",
+            unverified_claims.get("iss"),
+            unverified_claims.get("aud"),
+            unverified_claims.get("azp"),
+            unverified_claims.get("exp"),
+            unverified_claims.get("sub"),
+        )
+
+        jwks = _get_clerk_jwks()
+        keys = jwks.get("keys", [])
+        key_entry = next((key for key in keys if key.get("kid") == key_id), None)
+        if not key_entry:
+            raise ValueError("JWT signing key id was not found in the configured Clerk JWKS")
+        if key_entry.get("kty") != "RSA":
+            raise ValueError("JWT signing key is not an RSA key")
+        if key_entry.get("alg") not in (None, "RS256"):
+            raise ValueError("JWT signing key uses an unsupported algorithm")
+
+        issuer = os.environ.get("CLERK_ISSUER", "").rstrip("/") or None
+        if not issuer:
+            raise ValueError("CLERK_ISSUER is not configured")
+        configured_audience = os.environ.get("CLERK_AUDIENCE") or None
         public_key = RSAAlgorithm.from_jwk(json.dumps(key_entry))
-        # Do not require audience here — Clerk tokens vary; perform basic verification
-        payload = jwt.decode(token, public_key, algorithms=[key_entry.get("alg", "RS256")], options={"verify_aud": False})
+        payload = jwt.decode(
+            token,
+            public_key,
+            algorithms=["RS256"],
+            issuer=issuer,
+            audience=configured_audience,
+            options={"verify_aud": configured_audience is not None},
+        )
+        logger.info("Clerk auth verification succeeded: sub=%s", payload.get("sub"))
         return payload
-    except Exception:
+    except Exception as exc:
+        logger.warning("Clerk auth verification rejected token: %s", exc)
         return None
 
 def _get_mime_type(path: Path) -> str:
