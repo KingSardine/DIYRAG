@@ -40,7 +40,20 @@ from backend.pipeline_service import execute_pipeline, query_active_pipeline, ge
 from backend.log_handler import ws_log_handler
 
 logger = logging.getLogger("backend.app")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# NOTE: backend.log_handler (imported above) attaches ws_log_handler to the
+# root logger as an import-time side effect. That means the root logger
+# already has a handler by the time we get here, which makes
+# logging.basicConfig() a silent no-op (per its documented behavior) unless
+# force=True is passed. We deliberately do NOT use force=True, since that
+# would remove ws_log_handler and break the in-app real-time log stream.
+# Instead, explicitly set the root level and add our own StreamHandler
+# alongside the existing one, so logs also reach stdout/stderr (and from
+# there, Cloud Logging) in addition to the WebSocket subscribers.
+logging.getLogger().setLevel(logging.INFO)
+if not any(isinstance(h, logging.StreamHandler) for h in logging.getLogger().handlers):
+    _stream_handler = logging.StreamHandler()
+    _stream_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logging.getLogger().addHandler(_stream_handler)
 
 INGEST_DIR = ROOT / "ingestables"
 INGEST_DIR.mkdir(exist_ok=True)
