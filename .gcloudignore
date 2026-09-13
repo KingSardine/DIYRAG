@@ -1,0 +1,8 @@
+# .gcloudignore
+Frontend/node_modules/
+.venv-1/
+.venv/
+__pycache__/
+*.pyc
+.git/
+.pytest_cache/

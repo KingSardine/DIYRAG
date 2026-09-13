@@ -1,0 +1,20 @@
+# Local dependencies and build output
+**/node_modules
+**/dist
+**/__pycache__
+**/*.py[cod]
+.venv*
+.pytest_cache
+
+# Local secrets and environment files
+**/.env
+**/.env.*
+!.env.example
+
+# Git and editor metadata
+.git
+.gitignore
+.vscode
+
+# Local logs and generated artifacts
+*.log

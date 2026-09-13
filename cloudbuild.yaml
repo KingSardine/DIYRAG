@@ -1,0 +1,15 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'VITE_CLERK_PUBLISHABLE_KEY=${_VITE_CLERK_PUBLISHABLE_KEY}'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/diyrag-repo/first-image:tag1'
+      - '.'
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/diyrag-repo/first-image:tag1'
+
+substitutions:
+  _VITE_CLERK_PUBLISHABLE_KEY: ''  # overridden at submit time
