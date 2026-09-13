@@ -531,10 +531,26 @@ async def app(scope, receive, send):
             payload = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
             query_text = payload.get("query", "")
             cfg = payload.get("config", {})
+            generation_model = cfg.get("generation_model")
             k = int(cfg.get("k", 5))
             output_format = cfg.get("output_format", "snippet")
             snippet_len = int(cfg.get("snippet_length", 400))
             res = query_active_pipeline(query_text, k=k, output_format=output_format, snippet_length=snippet_len)
+            try:
+                from Generation.answer_generator import generate_answer
+
+                generation_chunks = [
+                    {
+                        "chunk_id": item["chunk_id"],
+                        "text": item.get("metadata", {}).get("source_text", item["doc"]),
+                    }
+                    for item in res.get("results", [])
+                ]
+                res["generation"] = generate_answer(query_text, generation_chunks, model=generation_model)
+            except Exception as generation_error:
+                logger.exception("Answer generation failed")
+                res["generation"] = None
+                res["generation_error"] = str(generation_error)
             await send_json(res)
         except Exception as e:
             logger.exception("Query error")

@@ -6,6 +6,7 @@ chunk_size: 500
 chunk_overlap: 50
 percentile_threshold: 60
 embedding_model: all-MiniLM-L6-v2
+generation_model: claude-sonnet-4-5-20250929
 vector_db: chromadb
 retriever: dense
 sparse_weight: 0.5

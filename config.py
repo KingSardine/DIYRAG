@@ -18,6 +18,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "chunk_overlap": 50,
     "preprocess": True,
     "embedding_model": "all-MiniLM-L6-v2",  # or 'bag_of_words'
+    "generation_model": "claude-haiku-4-5-20251001",
     "retriever": "hybrid",  # options: hybrid, sparse
     "k": 5,
 }

@@ -199,9 +199,14 @@ def query_active_pipeline(query_text: str, k: int = 5, output_format: str = "sni
         text = doc if output_format == "full" else doc[:snippet_length]
         formatted_results.append({
             "rank": rank,
+            "chunk_id": f"chunk-{rank}",
             "doc": text,
             "score": float(score),
-            "metadata": {"chunk_length": len(doc)},
+            "metadata": {
+                "chunk_length": len(doc),
+                "chunk_id": f"chunk-{rank}",
+                "source_text": doc,
+            },
         })
 
     logger.info("Query '%s' returned %d results in %d ms", query_text, len(formatted_results), elapsed_ms)
