@@ -335,21 +335,32 @@ async def app(scope, receive, send):
         try:
             content_type = headers_dict.get("content-type", "")
             orig_filename, clean_bytes = _extract_multipart_file(body_bytes, content_type)
-            
+
+            if Path(orig_filename).suffix.lower() != ".pdf":
+                await send_json({"error": "unsupported_file_type", "details": "Only PDF uploads are supported."}, status=400)
+                return
+
             dest = INGEST_DIR / orig_filename
             dest.write_bytes(clean_bytes)
 
             size_kb = len(clean_bytes) / 1024
             size_str = f"{size_kb / 1024:.2f} MB" if size_kb > 1024 else f"{size_kb:.1f} KB"
-            
+
             page_count = 1
             if orig_filename.endswith(".pdf"):
                 try:
                     from pypdf import PdfReader
                     reader = PdfReader(str(dest))
                     page_count = len(reader.pages)
-                except Exception:
-                    pass
+                    if page_count == 0:
+                        raise ValueError("PDF contains no pages")
+                except Exception as exc:
+                    try:
+                        dest.unlink()
+                    except OSError:
+                        pass
+                    await send_json({"error": "invalid_pdf", "details": str(exc)}, status=400)
+                    return
 
             logger.info("Uploaded and verified document: %s (%s, %d pages)", orig_filename, size_str, page_count)
             await send_json({
