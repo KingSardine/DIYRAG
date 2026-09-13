@@ -447,7 +447,8 @@ async def app(scope, receive, send):
             diag = get_stage_diagnostics()
             await send_json(diag)
         except Exception as e:
-            await send_json({"error": str(e)}, status=500)
+            logger.exception("Error while handling /api/pipeline/diagnostics")
+            await send_json({"error": "failed_to_get_diagnostics", "details": str(e)}, status=500)
         return
 
     elif path.startswith("/api/pipeline/status/") and method == "GET":

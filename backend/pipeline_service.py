@@ -181,7 +181,16 @@ def execute_pipeline(config_dict: Dict[str, Any]) -> Dict[str, Any]:
 def get_stage_diagnostics() -> Dict[str, Any]:
     global _last_stage_diagnostics
     if not _last_stage_diagnostics:
-        execute_pipeline(load_config())
+        try:
+            execute_pipeline(load_config())
+        except Exception as e:
+            logger.exception("Failed to compute stage diagnostics")
+            # Return a safe minimal diagnostics structure instead of raising
+            return {
+                "success": False,
+                "error": "failed_to_compute_diagnostics",
+                "details": str(e),
+            }
     return _last_stage_diagnostics
 
 def query_active_pipeline(query_text: str, k: int = 5, output_format: str = "snippet", snippet_length: int = 400) -> Dict[str, Any]:
