@@ -59,7 +59,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
   const isChunkingDone = telemetry.chunking.status === 'completed';
 
   return (
-    <div className="bg-[#101626] border border-slate-800 rounded-xl p-5 flex flex-col h-full shadow-lg relative overflow-hidden">
+    <div className="bg-[#101626] border border-slate-800 rounded-xl p-5 flex flex-col min-h-full shadow-lg relative overflow-visible">
       {/* Background Cyber Grid */}
       <div 
         className="absolute inset-0 opacity-15 pointer-events-none"
@@ -81,7 +81,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
       </div>
 
       {/* Flow Canvas Node Graph */}
-      <div className="flex-1 flex flex-col items-center justify-center py-2 relative z-10">
+      <div className="flex flex-col items-center justify-start py-2 relative z-10 min-h-[760px]">
         
         {/* --- NODE 1: INGESTION NODE --- */}
         <div 
@@ -118,7 +118,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
                 {getStatusBadge(telemetry.ingestion.status)}
               </div>
               <div className="text-[11px] font-mono text-slate-300 mt-0.5 flex items-center justify-between">
-                <span>Speed: <span className="text-emerald-300 font-semibold">{telemetry.ingestion.speed || '2.1 MB/s'}</span></span>
+                <span>Pages: <span className="text-emerald-300 font-semibold">{telemetry.ingestion.itemsProcessed ?? 'Unavailable'}</span></span>
                 {telemetry.ingestion.itemsProcessed && (
                   <span className="text-slate-400">{telemetry.ingestion.itemsProcessed} pgs</span>
                 )}
@@ -144,10 +144,6 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
             )}
           </svg>
 
-          {/* Real-time throughput indicator pill */}
-          <div className="absolute top-1/2 -translate-y-1/2 left-1/2 ml-4 bg-[#0a1520] border border-cyan-500/40 px-2.5 py-0.5 rounded-full text-[11px] font-mono text-cyan-300 whitespace-nowrap shadow-md">
-            {telemetry.chunking.chunksPerSec || '(342 Chunks/sec)'}
-          </div>
         </div>
 
         {/* --- NODE 2: CHUNKING NODE --- */}
@@ -185,8 +181,8 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
                 {getStatusBadge(telemetry.chunking.status)}
               </div>
               <div className="text-[11px] font-mono text-slate-300 mt-0.5 flex items-center justify-between">
-                <span>Created: <span className="text-amber-300 font-semibold">{telemetry.chunking.itemsProcessed || 48} chunks</span></span>
-                <span className="text-slate-400">avg 412 ch</span>
+                <span>Created: <span className="text-amber-300 font-semibold">{telemetry.chunking.itemsProcessed ?? 'Unavailable'} chunks</span></span>
+                <span className="text-slate-400">{telemetry.chunking.details || 'backend diagnostics'}</span>
               </div>
             </div>
           </div>
@@ -260,6 +256,72 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
                   {getStatusBadge(telemetry.vector_db.status)}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* --- FLOW STREAM TO RETRIEVAL --- */}
+        <div className="h-12 flex items-center justify-center relative">
+          <svg width="60" height="48" className="overflow-visible">
+            <line x1="30" y1="0" x2="30" y2="48" stroke={telemetry.retrieval.status === 'processing' || telemetry.retrieval.status === 'completed' ? '#38bdf8' : '#334155'} strokeWidth="3" />
+          </svg>
+        </div>
+
+        {/* --- NODE 5: RETRIEVAL NODE --- */}
+        <div
+          onClick={() => onNodeClick('retrieval')}
+          className={`w-72 sm:w-80 rounded-xl p-3.5 border transition-all duration-300 cursor-pointer shadow-lg relative group ${
+            telemetry.retrieval.status === 'processing'
+              ? 'border-sky-400 bg-sky-950/30 ring-2 ring-sky-500/50'
+              : telemetry.retrieval.status === 'completed'
+                ? 'border-sky-500/60 bg-sky-950/20'
+                : 'border-slate-700/80 bg-[#141b2d] hover:border-slate-600'
+          }`}
+        >
+          <div className="flex items-center space-x-3.5">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center border border-sky-500/50 bg-sky-950/60 text-sky-400">
+              <Search className="w-6 h-6" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-slate-100 text-sm tracking-wide">Retrieval Node</h3>
+                <span className="text-[10px] font-mono text-slate-400 group-hover:text-sky-300">[Inspect ↗]</span>
+              </div>
+              <div className="text-xs flex items-center gap-1.5 mt-0.5"><span className="text-slate-400">Status:</span>{getStatusBadge(telemetry.retrieval.status)}</div>
+              <div className="text-[11px] font-mono text-slate-300 mt-0.5">Sparse, dense, or hybrid ranking</div>
+            </div>
+          </div>
+        </div>
+
+        {/* --- FLOW STREAM TO GENERATION --- */}
+        <div className="h-12 flex items-center justify-center relative">
+          <svg width="60" height="48" className="overflow-visible">
+            <line x1="30" y1="0" x2="30" y2="48" stroke={telemetry.generation.status === 'processing' || telemetry.generation.status === 'completed' ? '#c084fc' : '#334155'} strokeWidth="3" />
+          </svg>
+        </div>
+
+        {/* --- NODE 6: GENERATION NODE --- */}
+        <div
+          onClick={() => onNodeClick('generation')}
+          className={`w-72 sm:w-80 rounded-xl p-3.5 border transition-all duration-300 cursor-pointer shadow-lg relative group ${
+            telemetry.generation.status === 'processing'
+              ? 'border-violet-400 bg-violet-950/30 ring-2 ring-violet-500/50'
+              : telemetry.generation.status === 'completed'
+                ? 'border-violet-500/60 bg-violet-950/20'
+                : 'border-slate-700/80 bg-[#141b2d] hover:border-slate-600'
+          }`}
+        >
+          <div className="flex items-center space-x-3.5">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center border border-violet-500/50 bg-violet-950/60 text-violet-400">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-slate-100 text-sm tracking-wide">Generation Node</h3>
+                <span className="text-[10px] font-mono text-slate-400 group-hover:text-violet-300">[Inspect ↗]</span>
+              </div>
+              <div className="text-xs flex items-center gap-1.5 mt-0.5"><span className="text-slate-400">Status:</span>{getStatusBadge(telemetry.generation.status)}</div>
+              <div className="text-[11px] font-mono text-slate-300 mt-0.5">Grounded answer with citations</div>
             </div>
           </div>
         </div>

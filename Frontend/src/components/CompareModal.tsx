@@ -29,16 +29,20 @@ export const CompareModal: React.FC<CompareModalProps> = ({
   const [query, setQuery] = useState('Tell me about Broadridge revenues and investor communication');
   const [isComparing, setIsComparing] = useState(false);
   const [result, setResult] = useState<CompareResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleRunComparison = async () => {
     setIsComparing(true);
+    setError(null);
     try {
       const res = await comparePipelines(configA, configB, query);
       setResult(res);
     } catch (err) {
       console.error('Comparison error', err);
+      setResult(null);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsComparing(false);
     }
@@ -90,6 +94,12 @@ export const CompareModal: React.FC<CompareModalProps> = ({
               {isComparing ? 'Benchmarking...' : 'Run Dual Benchmark'}
             </button>
           </div>
+
+          {error && (
+            <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              {error}
+            </div>
+          )}
 
           {/* Dual Setup Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

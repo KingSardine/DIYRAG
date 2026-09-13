@@ -18,6 +18,7 @@ interface LogTerminalProps {
   onSendInput: (input: string) => void;
   isWaitingForInput?: boolean;
   promptText?: string;
+  showInput?: boolean;
 }
 
 export const LogTerminal: React.FC<LogTerminalProps> = ({
@@ -26,6 +27,7 @@ export const LogTerminal: React.FC<LogTerminalProps> = ({
   onSendInput,
   isWaitingForInput = false,
   promptText = 'Query>',
+  showInput = true,
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [copied, setCopied] = useState(false);
@@ -132,7 +134,7 @@ export const LogTerminal: React.FC<LogTerminalProps> = ({
       >
         {logs.length === 0 ? (
           <div className="text-slate-500 italic py-3 text-center font-sans">
-            Ready. Click [RUN PIPELINE] or enter a command below to start logging stream...
+            Run the pipeline or submit a query from the Query Playground to see activity here...
           </div>
         ) : (
           logs.map((log) => (
@@ -146,32 +148,33 @@ export const LogTerminal: React.FC<LogTerminalProps> = ({
         <div ref={terminalEndRef} />
       </div>
 
-      {/* Terminal Interactive Input Line (stdin / Query prompt) */}
-      <form 
-        onSubmit={handleSubmit}
-        className="bg-[#0e1524] border-t border-slate-800 p-2.5 flex items-center space-x-2 z-10"
-      >
-        <div className="flex items-center space-x-1.5 text-cyan-400 font-mono text-xs font-bold pl-1">
-          <span>{promptText}</span>
-        </div>
-
-        <input
-          ref={inputRef}
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Type search query, terminal command, or parameter (e.g. 'financial revenues', 'help', 'exit')..."
-          className="flex-1 bg-[#131b2f] border border-slate-700/80 rounded-lg px-3 py-1.5 text-slate-100 text-xs font-mono focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all placeholder:text-slate-500"
-        />
-
-        <button
-          type="submit"
-          className="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors shadow-sm"
+      {showInput && (
+        <form
+          onSubmit={handleSubmit}
+          className="bg-[#0e1524] border-t border-slate-800 p-2.5 flex items-center space-x-2 z-10"
         >
-          <span>Send</span>
-          <CornerDownLeft className="w-3 h-3" />
-        </button>
-      </form>
+          <div className="flex items-center space-x-1.5 text-cyan-400 font-mono text-xs font-bold pl-1">
+            <span>{promptText}</span>
+          </div>
+
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Type search query, terminal command, or parameter (e.g. 'financial revenues', 'help', 'exit')..."
+            className="flex-1 bg-[#131b2f] border border-slate-700/80 rounded-lg px-3 py-1.5 text-slate-100 text-xs font-mono focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all placeholder:text-slate-500"
+          />
+
+          <button
+            type="submit"
+            className="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors shadow-sm"
+          >
+            <span>Send</span>
+            <CornerDownLeft className="w-3 h-3" />
+          </button>
+        </form>
+      )}
     </div>
   );
 };

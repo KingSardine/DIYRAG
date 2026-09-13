@@ -1,5 +1,6 @@
 export type ChunkingStrategy = 'recursive' | 'semantic' | 'fixed' | 'structural' | 'none';
-export type EmbeddingModel = 'all-MiniLM-L6-v2' | 'sentence-transformers/all-MiniLM-L6-v2' | 'bag_of_words';
+export type EmbeddingModel = 'all-MiniLM-L6-v2' | 'sentence-transformers/all-MiniLM-L6-v2' | 'bag_of_words' | 'tfidf';
+export type GenerationModel = 'claude-haiku-4-5-20251001' | 'claude-sonnet-4-5-20250929' | 'claude-opus-4-5-20251101';
 export type RetrieverChoice = 'hybrid' | 'sparse' | 'dense';
 export type OutputFormat = 'snippet' | 'full';
 
@@ -12,6 +13,7 @@ export interface PipelineConfig {
   chunk_overlap: number;
   percentile_threshold?: number;
   embedding_model: EmbeddingModel;
+  generation_model: GenerationModel;
   vector_db: 'hybrid_index' | 'chromadb';
   retriever: RetrieverChoice;
   sparse_weight: number;
@@ -39,6 +41,7 @@ export interface PipelineTelemetry {
   embedding: NodeTelemetry;
   vector_db: NodeTelemetry;
   retrieval: NodeTelemetry;
+  generation: NodeTelemetry;
 }
 
 export interface LogEntry {
@@ -51,15 +54,28 @@ export interface LogEntry {
 
 export interface QueryResultItem {
   rank: number;
+  chunk_id?: string;
   doc: string;
   score: number;
   metadata?: Record<string, any>;
+}
+
+export interface AnswerCitation {
+  part: string;
+  chunk_ids: string[];
+}
+
+export interface GeneratedAnswer {
+  answer: string;
+  citations: AnswerCitation[];
 }
 
 export interface QueryResponse {
   query: string;
   results: QueryResultItem[];
   latency_ms: number;
+  generation?: GeneratedAnswer | null;
+  generation_error?: string;
   node_breakdown?: {
     embedding_ms?: number;
     retrieval_ms?: number;

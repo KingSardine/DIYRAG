@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SignIn, useAuth, useClerk } from '@clerk/react';
+import { SignIn, useAuth } from '@clerk/react';
 import { Header } from './components/Header';
 import { StepConfig } from './components/StepConfig';
 import { FlowCanvas } from './components/FlowCanvas';
 import { LogTerminal } from './components/LogTerminal';
 import { NodeDetailModal } from './components/NodeDetailModal';
+import { QueryPlayground } from './components/QueryPlayground';
 import { 
   PipelineConfig, 
   PipelineTelemetry, 
@@ -23,15 +24,16 @@ import {
 import { setAuthTokenGetter } from './services/api';
 
 const INITIAL_TELEMETRY: PipelineTelemetry = {
-  ingestion: { status: 'idle', speed: '2.1 MB/s' },
-  chunking: { status: 'pending', chunksPerSec: '342 Chunks/sec' },
+  ingestion: { status: 'idle' },
+  chunking: { status: 'pending' },
   embedding: { status: 'pending' },
   vector_db: { status: 'pending' },
   retrieval: { status: 'pending' },
+  generation: { status: 'pending' },
 };
 
 export const App: React.FC = () => {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, getToken } = useAuth();
   const [config, setConfig] = useState<PipelineConfig>(DEFAULT_CONFIG);
   const [activeUsecase, setActiveUsecase] = useState('CompA');
   const [telemetry, setTelemetry] = useState<PipelineTelemetry>(INITIAL_TELEMETRY);
@@ -42,62 +44,44 @@ export const App: React.FC = () => {
   const [totalChunks, setTotalChunks] = useState(0);
   const [diagnostics, setDiagnostics] = useState<StageDiagnostics | null>(null);
   const [rateLimitNotice, setRateLimitNotice] = useState<string | null>(null);
-  const clerk = useClerk();
-
   // Resizable panel dimensions
   const [sidebarWidth, setSidebarWidth] = useState(380);
-  const [canvasHeightPercent, setCanvasHeightPercent] = useState(56);
   const [isDraggingH, setIsDraggingH] = useState(false);
-  const [isDraggingV, setIsDraggingV] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const rightColRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchConfig().then(setConfig);
-    fetchDocuments().then(setDocuments);
+    fetchConfig()
+      .then(setConfig)
+      .catch((err) => addLog({
+        id: Math.random().toString(),
+        timestamp: new Date().toTimeString().split(' ')[0],
+        level: 'WARN',
+        message: `Configuration unavailable: ${err instanceof Error ? err.message : String(err)}`,
+      }));
+    fetchDocuments()
+      .then(setDocuments)
+      .catch((err) => addLog({
+        id: Math.random().toString(),
+        timestamp: new Date().toTimeString().split(' ')[0],
+        level: 'WARN',
+        message: `Document list unavailable: ${err instanceof Error ? err.message : String(err)}`,
+      }));
     fetchDiagnostics().then(setDiagnostics);
 
-    // Register Clerk token getter for protected API calls
-    try {
-      if (clerk && typeof clerk.getToken === 'function') {
-        setAuthTokenGetter(async () => {
-          try {
-            return await clerk.getToken();
-          } catch (e) {
-            return null;
-          }
-        });
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    const initialLogs: LogEntry[] = [
-      {
-        id: '1',
-        timestamp: '14:32:01.04',
-        level: 'INFO',
-        message: 'Initializing PDF Plumber Loader...',
-        module: 'ingestion.pdf',
-      },
-      {
-        id: '2',
-        timestamp: '14:32:02.15',
-        level: 'SUCCESS',
-        message: 'Extracted 45 pages. Total character count: 124,500.',
-        module: 'ingestion.pdf',
-      },
-      {
-        id: '3',
-        timestamp: '14:32:02.18',
-        level: 'INFO',
-        message: 'Spawning background workers for RecursiveCharacterTextSplitter...',
-        module: 'chunking.recursive',
-      },
-    ];
-    setLogs(initialLogs);
+    setLogs([{
+      id: 'initial-state',
+      timestamp: new Date().toTimeString().split(' ')[0],
+      level: 'INFO',
+      message: 'Waiting for a pipeline run or query.',
+      module: 'pipeline',
+    }]);
   }, []);
+
+  useEffect(() => {
+    setAuthTokenGetter(getToken);
+  }, [getToken]);
 
   // Window resize mouse drag listeners
   useEffect(() => {
@@ -109,24 +93,14 @@ export const App: React.FC = () => {
           setSidebarWidth(newWidth);
         }
       }
-      if (isDraggingV && rightColRef.current) {
-        const rect = rightColRef.current.getBoundingClientRect();
-        const newPercent = ((e.clientY - rect.top) / rect.height) * 100;
-        if (newPercent >= 30 && newPercent <= 75) {
-          setCanvasHeightPercent(newPercent);
-        }
-      }
     };
 
-    const handleMouseUp = () => {
-      setIsDraggingH(false);
-      setIsDraggingV(false);
-    };
+    const handleMouseUp = () => setIsDraggingH(false);
 
-    if (isDraggingH || isDraggingV) {
+    if (isDraggingH) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = isDraggingH ? 'col-resize' : 'row-resize';
+      document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
     } else {
       document.body.style.cursor = '';
@@ -139,7 +113,7 @@ export const App: React.FC = () => {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
-  }, [isDraggingH, isDraggingV]);
+  }, [isDraggingH]);
 
   const addLog = (log: LogEntry) => {
     setLogs((prev) => [...prev, log]);
@@ -147,7 +121,12 @@ export const App: React.FC = () => {
 
   const handleConfigChange = (newConfig: PipelineConfig) => {
     setConfig(newConfig);
-    saveConfig(newConfig);
+    saveConfig(newConfig).catch((err) => addLog({
+      id: Math.random().toString(),
+      timestamp: new Date().toTimeString().split(' ')[0],
+      level: 'WARN',
+      message: `Configuration was not saved: ${err instanceof Error ? err.message : String(err)}`,
+    }));
   };
 
   const handleRunPipeline = async () => {
@@ -182,15 +161,33 @@ export const App: React.FC = () => {
         setRateLimitNotice(`Too many requests — please wait ${retry} seconds and try again`);
         // auto-dismiss after a short period
         setTimeout(() => setRateLimitNotice(null), Math.min(retry * 1000, 30000));
+        setTelemetry((prev) => ({
+          ...prev,
+          ingestion: { ...prev.ingestion, status: 'error' },
+          chunking: { ...prev.chunking, status: 'error' },
+          embedding: { ...prev.embedding, status: 'error' },
+          vector_db: { ...prev.vector_db, status: 'error' },
+          retrieval: { ...prev.retrieval, status: 'error' },
+          generation: { ...prev.generation, status: 'error' },
+        }));
         return;
       }
 
       console.error('Pipeline run error', err);
+      setTelemetry((prev) => ({
+        ...prev,
+        ingestion: { ...prev.ingestion, status: 'error' },
+        chunking: { ...prev.chunking, status: 'error' },
+        embedding: { ...prev.embedding, status: 'error' },
+        vector_db: { ...prev.vector_db, status: 'error' },
+        retrieval: { ...prev.retrieval, status: 'error' },
+        generation: { ...prev.generation, status: 'error' },
+      }));
       addLog({
         id: Math.random().toString(),
         timestamp: new Date().toTimeString().split(' ')[0],
         level: 'ERROR',
-        message: `Pipeline execution failed: ${err}`,
+        message: `Pipeline unavailable: ${err instanceof Error ? err.message : String(err)}`,
       });
     } finally {
       setIsRunning(false);
@@ -241,6 +238,22 @@ export const App: React.FC = () => {
 
     try {
       const queryRes = await executeQuery(input, config);
+
+      if (queryRes.generation?.answer) {
+        addLog({
+          id: Math.random().toString(),
+          timestamp: ts,
+          level: 'SUCCESS',
+          message: `Answer:\n${queryRes.generation.answer}\nCitations: ${queryRes.generation.citations.flatMap((citation) => citation.chunk_ids).join(', ') || 'none'}`,
+        });
+      } else if (queryRes.generation_error) {
+        addLog({
+          id: Math.random().toString(),
+          timestamp: ts,
+          level: 'WARN',
+          message: `Answer generation unavailable: ${queryRes.generation_error}`,
+        });
+      }
       
       if (!queryRes.results || queryRes.results.length === 0) {
         addLog({
@@ -300,7 +313,7 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {/* Main Sandbox Dashboard Layout (Window Fit & Adjustable Splitters) */}
+          {/* Main Sandbox Dashboard Layout */}
           <div 
             ref={containerRef}
             className="flex-1 h-[calc(100vh-52px)] overflow-hidden flex p-3 gap-0 relative"
@@ -328,16 +341,12 @@ export const App: React.FC = () => {
           <div className="w-1 h-8 rounded-full bg-slate-700 group-hover:bg-cyan-400 transition-colors" />
         </div>
 
-        {/* Right Column: Flow Canvas & Real-Time Terminal (Resizable Vertically) */}
+        {/* Center Column: Scrollable Flow Canvas and Logs */}
         <div 
           ref={rightColRef}
           className="flex-1 min-w-0 h-full flex flex-col overflow-hidden"
         >
-          {/* Top: 2. LIVE PIPELINE FLOW CANVAS */}
-          <div 
-            style={{ height: `${canvasHeightPercent}%` }} 
-            className="w-full shrink-0 min-h-[220px] overflow-hidden flex flex-col"
-          >
+          <div className="w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col">
             <FlowCanvas
               telemetry={telemetry}
               isRunning={isRunning}
@@ -345,24 +354,24 @@ export const App: React.FC = () => {
             />
           </div>
 
-          {/* Vertical Resizer Bar (Drag Up / Down) */}
-          <div
-            onMouseDown={() => setIsDraggingV(true)}
-            className="h-3 shrink-0 w-full flex items-center justify-center cursor-row-resize group hover:bg-cyan-500/10 transition-colors select-none my-0.5"
-          >
-            <div className="h-1 w-12 rounded-full bg-slate-700 group-hover:bg-cyan-400 transition-colors" />
-          </div>
-
-          {/* Bottom: 4. REAL-TIME BACKEND LOG STREAM & TERMINAL */}
-          <div className="flex-1 min-h-[140px] w-full overflow-hidden flex flex-col">
+          <div className="h-44 shrink-0 w-full overflow-hidden mt-3">
             <LogTerminal
               logs={logs}
               onClearLogs={() => setLogs([])}
               onSendInput={handleTerminalInput}
               isWaitingForInput={true}
               promptText="Query>"
+              showInput={false}
             />
           </div>
+        </div>
+
+        {/* Right Column: Scrollable Query Playground */}
+        <div className="w-[360px] shrink-0 h-full min-h-0 ml-3 overflow-y-auto overflow-x-hidden">
+          <QueryPlayground
+            config={config}
+            onQueryComplete={() => undefined}
+          />
         </div>
       </div>
 

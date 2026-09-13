@@ -12,28 +12,35 @@ export const QueryPlayground: React.FC<QueryPlaygroundProps> = ({
   config,
   onQueryComplete,
 }) => {
-  const [query, setQuery] = useState('Tell me about Broadridge revenues and investor communication');
+  const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGenerationLoading, setIsGenerationLoading] = useState(false);
   const [lastResponse, setLastResponse] = useState<QueryResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!query.trim() || isLoading) return;
 
     setIsLoading(true);
+    setIsGenerationLoading(true);
+    setError(null);
     try {
       const res = await executeQuery(query.trim(), config);
       setLastResponse(res);
       onQueryComplete(res);
     } catch (err) {
       console.error('Query failed', err);
+      setLastResponse(null);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsLoading(false);
+      setIsGenerationLoading(false);
     }
   };
 
   return (
-    <div className="bg-[#111726] border border-slate-800 rounded-xl p-4 flex flex-col shadow-lg">
+    <div className="bg-[#111726] border border-slate-800 rounded-xl p-4 flex flex-col min-h-full shadow-lg">
       <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-3">
         <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
           <span className="text-cyan-400">3.</span> QUERY & DIAGNOSTIC PLAYGROUND
@@ -64,12 +71,47 @@ export const QueryPlayground: React.FC<QueryPlaygroundProps> = ({
           className="bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-500 hover:to-sky-500 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-md shadow-cyan-950 transition-all disabled:opacity-50"
         >
           <Sparkles className="w-3.5 h-3.5" />
-          {isLoading ? 'Searching...' : 'Search'}
+          {isLoading ? 'Retrieving...' : 'Search'}
         </button>
       </form>
 
       {/* Results Container */}
-      <div className="flex-1 overflow-y-auto max-h-56 space-y-2 pr-1">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
+        {error && (
+          <div className="rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+            Query unavailable: {error}
+          </div>
+        )}
+        {isGenerationLoading && (
+          <div className="rounded border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-xs text-violet-200">
+            Generating grounded answer...
+          </div>
+        )}
+        {lastResponse?.generation && (
+          <section className="rounded-lg border border-violet-500/40 bg-violet-950/20 p-3 space-y-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-violet-200">Answer</h3>
+            <p className="text-slate-200 text-xs leading-relaxed whitespace-pre-wrap">
+              {lastResponse.generation.answer}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {lastResponse.generation.citations.flatMap((citation) => citation.chunk_ids).map((chunkId) => (
+                <button
+                  key={chunkId}
+                  type="button"
+                  className="rounded border border-violet-400/40 px-1.5 py-0.5 text-[10px] font-mono text-violet-200 hover:bg-violet-500/20"
+                  onClick={() => document.getElementById(chunkId)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })}
+                >
+                  [{chunkId}]
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+        {lastResponse?.generation_error && (
+          <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            Answer generation unavailable: {lastResponse.generation_error}
+          </div>
+        )}
         {!lastResponse ? (
           <div className="text-center py-6 text-slate-500 text-xs italic">
             Enter a query above to inspect top-{config.k} retrieved chunks and relevance scores.
@@ -82,6 +124,7 @@ export const QueryPlayground: React.FC<QueryPlaygroundProps> = ({
           lastResponse.results.map((item) => (
             <div
               key={item.rank}
+              id={item.chunk_id || `chunk-${item.rank}`}
               className="bg-[#0f1627] border border-slate-800 hover:border-slate-700 p-2.5 rounded-lg text-xs transition-all"
             >
               <div className="flex items-center justify-between mb-1.5">

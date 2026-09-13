@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, FileText, Sliders, Layers, Database, Search } from 'lucide-react';
+import { X, FileText, Sliders, Layers, Database, Search, Sparkles } from 'lucide-react';
 import { PipelineConfig, PipelineTelemetry, StageDiagnostics } from '../types';
 
 interface NodeDetailModalProps {
@@ -20,12 +20,12 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
   if (!nodeId) return null;
 
   const docName = (config.pdf_path || 'document.pdf').split(/[/\\]/).pop();
-  const pageCount = diagnostics?.page_count || telemetry.ingestion.itemsProcessed || 45;
-  const totalChars = diagnostics?.total_chars || 124500;
-  const chunkCount = diagnostics?.chunk_count || telemetry.chunking.itemsProcessed || 48;
-  const avgChunkSize = diagnostics?.avg_chunk_size || 412;
-  const pageSample = diagnostics?.page_1_sample || 'Document loaded. Sample text preview extracted directly from active PDF pages.';
-  const chunkSample = diagnostics?.chunk_0_sample || 'Chunk 0 created via active splitting strategy.';
+  const pageCount = diagnostics?.page_count ?? telemetry.ingestion.itemsProcessed;
+  const totalChars = diagnostics?.total_chars;
+  const chunkCount = diagnostics?.chunk_count ?? telemetry.chunking.itemsProcessed;
+  const avgChunkSize = diagnostics?.avg_chunk_size;
+  const pageSample = diagnostics?.page_1_sample;
+  const chunkSample = diagnostics?.chunk_0_sample;
 
   const renderContent = () => {
     switch (nodeId) {
@@ -50,18 +50,20 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
                 <span className="text-emerald-400">PyPDFLoader / pypdf</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Throughput Speed:</span>
-                <span className="text-emerald-400">{telemetry.ingestion.speed || '2.1 MB/s'}</span>
+                <span className="text-slate-400">Measured Ingestion:</span>
+                <span className="text-emerald-400">{telemetry.ingestion.details || 'Unavailable'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Pages Processed:</span>
-                <span className="text-slate-200 font-bold">{pageCount} pages ({totalChars.toLocaleString()} chars)</span>
+                <span className="text-slate-200 font-bold">
+                  {pageCount ?? 'Unavailable'} pages ({totalChars?.toLocaleString() ?? 'Unavailable'} chars)
+                </span>
               </div>
             </div>
             <div className="bg-[#0b101c] p-3 rounded-lg border border-slate-800 text-xs">
               <span className="text-slate-400 block mb-1 font-semibold">Extracted Page 1 Sample:</span>
               <p className="text-slate-300 font-sans leading-relaxed select-text whitespace-pre-wrap max-h-36 overflow-y-auto">
-                {pageSample}
+                {pageSample || 'Unavailable until a successful pipeline run returns diagnostics.'}
               </p>
             </div>
           </div>
@@ -93,13 +95,15 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Total Chunks Created:</span>
-                <span className="text-amber-300 font-bold">{chunkCount} chunks (avg {avgChunkSize} chars)</span>
+                <span className="text-amber-300 font-bold">
+                  {chunkCount ?? 'Unavailable'} chunks (avg {avgChunkSize ?? 'Unavailable'} chars)
+                </span>
               </div>
             </div>
             <div className="bg-[#0b101c] p-3 rounded-lg border border-slate-800 text-xs">
               <span className="text-slate-400 block mb-1 font-semibold">Chunk 0 Sample:</span>
               <p className="text-slate-300 font-mono text-[11px] leading-relaxed select-text whitespace-pre-wrap max-h-36 overflow-y-auto">
-                {chunkSample}
+                {chunkSample || 'Unavailable until a successful pipeline run returns diagnostics.'}
               </p>
             </div>
           </div>
@@ -157,6 +161,30 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
               <div className="flex justify-between">
                 <span className="text-slate-400">Indexed Corpus Size:</span>
                 <span className="text-emerald-400 font-bold">{chunkCount} items</span>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'generation':
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3 text-violet-400">
+              <Sparkles className="w-6 h-6" />
+              <h3 className="text-base font-bold">Answer Generation Diagnostics</h3>
+            </div>
+            <div className="bg-[#131b2e] p-4 rounded-xl space-y-2 text-xs font-mono">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Language Model:</span>
+                <span className="text-violet-300 font-bold">{config.generation_model}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Grounding:</span>
+                <span className="text-slate-200">Retrieved chunks with citations</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Status:</span>
+                <span className="text-slate-200">Answer available after query</span>
               </div>
             </div>
           </div>

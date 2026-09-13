@@ -15,7 +15,7 @@ import {
   Link,
   Sparkles
 } from 'lucide-react';
-import { PipelineConfig, ChunkingStrategy, EmbeddingModel, RetrieverChoice } from '../types';
+import { PipelineConfig, ChunkingStrategy, EmbeddingModel, RetrieverChoice, GenerationModel } from '../types';
 import { uploadPdf } from '../services/api';
 
 interface StepConfigProps {
@@ -42,6 +42,7 @@ export const StepConfig: React.FC<StepConfigProps> = ({
     embedding: false,
     vectordb: false,
     retrieval: false,
+    generation: false,
   });
 
   // Enabled/disabled step checkboxes
@@ -51,6 +52,7 @@ export const StepConfig: React.FC<StepConfigProps> = ({
     embedding: true,
     vectordb: true,
     retrieval: true,
+    generation: true,
   });
 
   const [isUploading, setIsUploading] = useState(false);
@@ -342,7 +344,11 @@ export const StepConfig: React.FC<StepConfigProps> = ({
             </div>
             <div className="flex items-center space-x-2 text-slate-400">
               <span className="text-[11px] font-mono text-purple-400">
-                {config.embedding_model === 'bag_of_words' ? 'Bag-of-Words' : 'MiniLM-L6'}
+                {config.embedding_model === 'bag_of_words'
+                  ? 'Bag-of-Words'
+                  : config.embedding_model === 'tfidf'
+                    ? 'TF-IDF'
+                    : 'MiniLM-L6'}
               </span>
               {openSections.embedding ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </div>
@@ -360,6 +366,7 @@ export const StepConfig: React.FC<StepConfigProps> = ({
                   <option value="all-MiniLM-L6-v2">all-MiniLM-L6-v2 (Dense Transformer, 384-dim)</option>
                   <option value="sentence-transformers/all-MiniLM-L6-v2">sentence-transformers/all-MiniLM-L6-v2</option>
                   <option value="bag_of_words">bag_of_words (Fast CPU fallback)</option>
+                  <option value="tfidf">tfidf (TF-IDF weighted embeddings)</option>
                 </select>
               </div>
             </div>
@@ -479,6 +486,52 @@ export const StepConfig: React.FC<StepConfigProps> = ({
                     <option value="full">Full Text</option>
                   </select>
                 </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* --- STEP 6: GENERATION --- */}
+        <div className={`border rounded-lg transition-all duration-200 ${
+          enabledSteps.generation ? 'border-violet-500/40 bg-slate-900/60' : 'border-slate-800/60 bg-slate-950/40 opacity-75'
+        }`}>
+          <div
+            onClick={() => toggleSection('generation')}
+            className="flex items-center justify-between p-2.5 cursor-pointer select-none hover:bg-slate-800/30 rounded-t-lg"
+          >
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={(e) => toggleStep('generation', e)}
+                className="text-violet-400 hover:text-violet-300 focus:outline-none"
+              >
+                {enabledSteps.generation ? (
+                  <CheckSquare className="w-4 h-4 text-violet-400" />
+                ) : (
+                  <Square className="w-4 h-4 text-slate-500" />
+                )}
+              </button>
+              <Sparkles className="w-4 h-4 text-violet-400" />
+              <span className="font-semibold text-slate-200">Generation</span>
+            </div>
+            <div className="flex items-center space-x-2 text-slate-400">
+              <span className="text-[11px] font-mono text-violet-400">{config.generation_model}</span>
+              {openSections.generation ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </div>
+          </div>
+
+          {openSections.generation && (
+            <div className="p-3 border-t border-slate-800/70 space-y-3 bg-[#0d1322]/80">
+              <div>
+                <label className="block text-slate-400 mb-1 text-[11px] font-medium">Language Model</label>
+                <select
+                  value={config.generation_model}
+                  onChange={(e) => onChange({ ...config, generation_model: e.target.value as GenerationModel })}
+                  className="w-full bg-[#151c2e] border border-slate-700/80 rounded px-2.5 py-1.5 text-slate-200 focus:border-violet-500 focus:outline-none"
+                >
+                  <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (fast)</option>
+                  <option value="claude-sonnet-4-5-20250929">Claude Sonnet 4.5 (balanced)</option>
+                  <option value="claude-opus-4-5-20251101">Claude Opus 4.5 (highest capability)</option>
+                </select>
               </div>
             </div>
           )}
